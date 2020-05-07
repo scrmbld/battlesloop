@@ -24,9 +24,12 @@ int main() {
 	//wait for players to connect
 	while (true) {
 		string read = s_recv(socket);
-		cout << "SERVER: " << "recieved " << read << endl;
-		players.push_back(Player(read, players.size()));
-		
-		s_send(socket, string("w"));
+		if (read == "\f") {
+			s_send(socket, "\f");
+		} else {
+			players.push_back(Player(read, players.size()));
+			cout  << "SERVER: " << players.back() << endl;
+		s_send(socket, string("300"));
+		}
 	}
 }
