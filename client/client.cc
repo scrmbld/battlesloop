@@ -6,12 +6,32 @@
 #include <vector>
 #include <ncurses.h>
 #include <unistd.h>
+#include <sstream>
 #include "draw_board.h"
+#include "player.h"
 using namespace std;
 using namespace zmq;
 
 socket_t *server = nullptr;
 string uname;
+
+
+void parse_input(const string &input, vector<string> &data) {
+	data.clear();
+	stringstream ss(input);
+	string tgt;
+	getline(ss, tgt, '\v');
+	if (tgt != uname) {
+		data.push_back("ERR");
+		return;
+	}
+	while (ss) {
+		string temp;
+		getline(ss, temp, '\v');
+		if (!ss) break;
+		data.push_back(temp);
+	}
+}
 
 void die(int s = 0) {
 	//TODO: update this when we add back ncurses
@@ -32,6 +52,7 @@ int main() {
 	system("figlet BATTLESLOOP");
 	cout << "\n\n\n" << "What is your username?" << endl;
 	cin >> uname;
+	Player self(uname, 0);
 	cout << "connecting to server..." << flush;
 	signal(SIGINT, die); //disconnect nicely
 
@@ -47,10 +68,12 @@ int main() {
 	socket.connect("tcp://" + hostname + ":" + to_string(port));
 	s_send(socket, uname + "\v" + "LOGIN");
 
-	string response = s_recv(socket);
+	string read = s_recv(socket);
+	vector<string> data;
+	parse_input(read, data);
 	cout << "found server" << endl;
 	server = &socket;
-	   
+
 	//start ncurses
 	int line = 0;
 	system("clear");
@@ -64,20 +87,36 @@ int main() {
 	const int MAXFPS = 60;//cap the frame rate
 
 
-	if (response == "ADDED") {
+	if (data.at(0) == "ADDED") {
 		mvprintw(line, 0, "Connected successfully");
 		line++;
 	} else {
 		mvprintw(line, 0, "Something went wrong: unable to log in");
+		exit(EXIT_FAILURE);
 		line++;
 	}
 	refresh();
+
+
 	while (true) {
+		while (!self.in_game()) {
+			s_send(socket, uname + "\vSEARCH");
+			read = s_recv(socket);
+			parse_input(read, data);
+			usleep(1'000'000 / MAXFPS);
+			if (data.at(0) == "JOINED") {
+				self.joined();
+				
+				mvprintw(line, 0, "Joined game ");
+				refresh();
+				line++;
+			}
+		}
 		s_send(socket, uname + "\v" + "\a");
-		response.clear();
-		response = s_recv(socket);
+		read = s_recv(socket);
+		parse_input(read, data);
 		usleep(1'000'000 / MAXFPS);
-		if (response != "\a") {
+		if (data.at(0) != "\a") {
 			mvprintw(line, 0, "something went wrong");
 			line++;
 			break;
@@ -87,7 +126,7 @@ int main() {
 	getch();
 	clear();
 	endwin();
-	cout << response << endl;
+	cout << data.at(0) << endl;
 	return 0;
 
 }
