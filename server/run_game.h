@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <zmq.hpp>
 #include <zhelpers.hpp>
@@ -52,8 +53,11 @@ void run_game(unsigned char id = 0) {
 		parse_input(read, data, uname);
 	
 		if (data.at(0) == "JOINING") {
+			if (data.size() != 2) {
+				s_send(socket, uname + "\vERR");
+			}
 			if (players.size() < 4) {
-				players.push_back(uname);
+				players.push_back(Player(uname, size_t(stoi(data.at(1)))));
 				cout << "GAME " << id << ": " << uname << "joined the game" << endl;
 				s_send(socket, uname + "\vADDED");
 			} else {

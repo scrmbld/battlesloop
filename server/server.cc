@@ -32,7 +32,6 @@ int main() {
 	//prepare for players
 	unordered_map<string, Player> players;
 	deque<Player> waiting;
-	Game game(0);
 
 	//wait for players to connect
 	while (true) {
@@ -55,8 +54,6 @@ int main() {
 			}
 		} else if (data.at(0) == "LOGOUT") {
 			Player to_delete(uname, players.at(uname).get_uid());
-			//make sure they aren't in game
-			game.remove_player(to_delete);
 			//delete them from both lists
 			players.erase(uname);
 			remove(waiting.begin(), waiting.end(), to_delete);
@@ -64,30 +61,17 @@ int main() {
 		} else if (data.at(0) == "\a") { //\a indicates empty message
 		} else if (data.at(0) == "SEARCH") {//the client wishes to join a game
 			if (find(waiting.begin(), waiting.end(), players.at(uname)) == waiting.end()) {
-				if (game.in_game(uname)) {
-					s_send(socket, uname + "\vJOINED");
-					continue;
-				} else {
-					waiting.push_back(players.at(uname));
-					cout << "SERVER: " << uname << " was added to the waitlist" << endl;
-					s_send(socket, uname + "\vWAIT");
-					continue;
-				}
+				waiting.push_back(players.at(uname));
+				cout << "SERVER: " << uname << " was added to the waitlist" << endl;
+				s_send(socket, uname + "\vWAIT");
+				continue;
 			} 
 
 		} else {
 			//TODO: add game logic
 		}
 		//TODO: update player on game state
-		//handle matchmaking
-		if ((!game.p1().size() || !game.p2().size()) && waiting.size()) {
-			cout << waiting.size() << endl;
-			game.add_player(waiting.front());
-			s_send(socket, waiting.front().get_uname() + "\vJOINED");
-			cout << waiting.front().get_uname() << " is joining board 1" << endl;
-			waiting.pop_front();
-			continue;
-		}
+		//TODO: handle matchmaking
 
 		s_send(socket, "\a");
 	}
