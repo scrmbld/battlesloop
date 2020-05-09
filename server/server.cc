@@ -8,14 +8,25 @@
 #include <list>
 #include <sstream>
 #include <algorithm>
+#include <deque>
 #include "player.h"
 #include "game.h"
 #include "board.h"
 using namespace std;
 using namespace zmq;
 
-bool has_one(Game &g) {
-	return g.p1() && !g.p2();
+//takes a string sent over zmq and turns it into a username and usable data
+void parse_input(const string &read, vector<string> &data, string &user) {
+	stringstream ss(read);
+	getline(ss, user, '\v');
+	while (ss) {
+		string temp;
+		getline(ss, temp, '\v');
+		if (!ss) break;
+		data.push_back(temp);
+	}
+	//prevent out of bounds errors if the user sends no data
+	if (data.size() == 0) data.push_back("ERR");
 }
 
 int main() {
@@ -29,50 +40,65 @@ int main() {
 	socket.bind("tcp://*:" + to_string(port));//listen on port
 
 	//prepare for players
-	unordered_map<string, pair<Player, Game*>> players;
-	list<Game> games;
-	size_t next_gid = 1;
+	unordered_map<string, Player> players;
+	deque<Player> waiting;
+	Game game(0);
+
 	//wait for players to connect
 	while (true) {
 		string read = s_recv(socket);//wait until something gets sent
-		stringstream ss(read);
+		vector<string> data;
 		string uname;
-		getline(ss, uname, '\v');//use vertical tabs to separate data
-		string data;
-		getline(ss, data, '\v');
+		parse_input(read, data, uname);
 
 		//if the player is just joining:
-		if (data == "LOGIN") {
-			cout << "SERVER: " << read << endl;
+		if (data.at(0) == "LOGIN") {
+			cout << "SERVER: " << uname << " joined the game" << endl;
 			if (players.count(uname) == 0) {//don't allow duplicates
-				pair<Player, Game*> new_player = {Player(uname, players.size()), nullptr};
-				players.emplace(uname, new_player);
+				players.emplace(uname, Player(uname, players.size()));//add the player to the database
 				s_send(socket, uname + "\vADDED");
 				continue;
 			} else {
-				cout << "SERVER: user already exists" << endl;
+				cout << "SERVER_ERROR: user " << uname << " already exists" << endl;
 				s_send(socket, uname + "\vERR");
 				continue;
 			}
-		} else if (data == "LOGOUT") {
+		} else if (data.at(0) == "LOGOUT") {
+			Player to_delete(uname, players.at(uname).get_uid());
+			//make sure they aren't in game
+			game.remove_player(to_delete);
+			//delete them from both lists
 			players.erase(uname);
-		} else if (data == "\a") { //\a indicates empty message
-		} else if (data == "SEARCH") {//the client wishes to join a game
-			auto it = find_if(games.begin(), games.end(), has_one);
-			if (it != games.end()) {
-				it->add_player(players.at(uname));
-				s_send(socket, uname + "\vJOINED");
-				continue;
-			} else {
-				games.push_back(Game(next_gid));
-				games.back().add_player(players.at(uname));
-				next_gid++;
-			}
+			remove(waiting.begin(), waiting.end(), to_delete);
+			cout << "SERVER: " << uname << " has left the game" << endl;
+		} else if (data.at(0) == "\a") { //\a indicates empty message
+		} else if (data.at(0) == "SEARCH") {//the client wishes to join a game
+			if (find(waiting.begin(), waiting.end(), players.at(uname)) == waiting.end()) {
+				if (game.in_game(uname)) {
+					s_send(socket, uname + "\vJOINED");
+					continue;
+				} else {
+					waiting.push_back(players.at(uname));
+					cout << "SERVER: " << uname << " was added to the waitlist" << endl;
+					s_send(socket, uname + "\vWAIT");
+					continue;
+				}
+			} 
+
 		} else {
 			//TODO: add game logic
 		}
 		//TODO: update player on game state
-		//for now just send them whatever
+		//handle matchmaking
+		if ((!game.p1().size() || !game.p2().size()) && waiting.size()) {
+			cout << waiting.size() << endl;
+			game.add_player(waiting.front());
+			s_send(socket, waiting.front().get_uname() + "\vJOINED");
+			cout << waiting.front().get_uname() << " is joining board 1" << endl;
+			waiting.pop_front();
+			continue;
+		}
+
 		s_send(socket, "\a");
 	}
 }
