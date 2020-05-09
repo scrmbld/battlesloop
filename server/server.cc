@@ -1,4 +1,5 @@
 #include <iostream>
+#include <thread>
 #include <zmq.hpp>
 #include <zhelpers.hpp>
 #include <string>
@@ -9,25 +10,14 @@
 #include <sstream>
 #include <algorithm>
 #include <deque>
+#include "parse_input.h"
 #include "player.h"
 #include "game.h"
 #include "board.h"
+#include "run_game.h"
 using namespace std;
 using namespace zmq;
 
-//takes a string sent over zmq and turns it into a username and usable data
-void parse_input(const string &read, vector<string> &data, string &user) {
-	stringstream ss(read);
-	getline(ss, user, '\v');
-	while (ss) {
-		string temp;
-		getline(ss, temp, '\v');
-		if (!ss) break;
-		data.push_back(temp);
-	}
-	//prevent out of bounds errors if the user sends no data
-	if (data.size() == 0) data.push_back("ERR");
-}
 
 int main() {
 	//set up socket
