@@ -21,6 +21,10 @@ void parse_input(const string &input, vector<string> &data) {
 	stringstream ss(input);
 	string tgt;
 	getline(ss, tgt, '\v');
+	if (tgt == "\a") {
+		data.push_back("\a");
+		return;
+	}
 	if (tgt != uname) {
 		data.push_back("ERR");
 		return;
@@ -31,12 +35,15 @@ void parse_input(const string &input, vector<string> &data) {
 		if (!ss) break;
 		data.push_back(temp);
 	}
+
+	if (data.size() == 0) {
+		data.at(0) == "ERR";//prevent out of bounds on improper input
+	}
 }
 
 void die(int s = 0) {
 	//TODO: update this when we add back ncurses
 	s = s;
-	getch();
 	clear();
 	endwin();
 	
@@ -99,6 +106,11 @@ int main() {
 
 
 	while (true) {
+		if (!self.in_game()) {
+			mvprintw(line, 0, "Searching for a match");
+			line++;
+			refresh();
+		}
 		while (!self.in_game()) {
 			s_send(socket, uname + "\vSEARCH");
 			read = s_recv(socket);
@@ -110,20 +122,15 @@ int main() {
 				mvprintw(line, 0, "Joined game ");
 				refresh();
 				line++;
+				break;
 			}
 		}
 		s_send(socket, uname + "\v" + "\a");
 		read = s_recv(socket);
 		parse_input(read, data);
 		usleep(1'000'000 / MAXFPS);
-		if (data.at(0) != "\a") {
-			mvprintw(line, 0, "something went wrong");
-			line++;
-			break;
-		}
 	}
 	refresh();
-	getch();
 	clear();
 	endwin();
 	cout << data.at(0) << endl;
