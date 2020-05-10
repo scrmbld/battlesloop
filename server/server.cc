@@ -1,5 +1,4 @@
 #include <iostream>
-#include <thread>
 #include <zmq.hpp>
 #include <zhelpers.hpp>
 #include <string>
@@ -15,9 +14,25 @@
 #include "game.h"
 #include "board.h"
 #include "run_game.h"
+#include <thread>
 using namespace std;
 using namespace zmq;
 
+int port = 1533;
+
+context_t rooms(1);
+class room {
+	public:
+		socket_t sock;
+		size_t id;
+		bool available = false;
+		room() = delete;
+		room(size_t new_id) : sock(rooms, ZMQ_REQ) {
+			id = new_id;
+			sock.setsockopt(ZMQ_IPV6, 1);
+			sock.connect("tcp://localhost:" + to_string(port + 1 + id));
+		}
+};
 
 int main() {
 	//set up socket
@@ -25,9 +40,13 @@ int main() {
 	context_t context(1);
 	socket_t socket(context, ZMQ_REP);
 	socket.setsockopt(ZMQ_IPV6, 1);
-	int port = 1533;
-	
 	socket.bind("tcp://*:" + to_string(port));//listen on port
+
+	//create the game server
+	thread game(run_game, 0);
+	room room_1(0);
+	s_send(room_1.sock, "server\v?");
+	s_recv(room_1.sock);
 
 	//prepare for players
 	unordered_map<string, Player> players;
@@ -70,8 +89,30 @@ int main() {
 		} else {
 			//TODO: add game logic
 		}
-		//TODO: update player on game state
 		//TODO: handle matchmaking
+
+
+		if (waiting.size()) {
+			try{
+				s_send(room_1.sock, "server\v?");
+			} catch (const zmq::error_t e) {
+				cout << "it's the server" << endl;
+				cout << e.what() << endl;
+			}
+			read = s_recv(room_1.sock);
+			parse_input(read, data, uname);
+			if (data.at(0) == "AVAILABLE") {
+				room_1.available = true;
+				cout << "SERVER: game open" << endl;
+			}
+
+		}
+
+		if (room_1.available == true) {
+			s_send(socket, waiting.at(0).get_uname() + "\vJOIN\v" + to_string(port + 1 + room_1.id));
+			room_1.available = false;
+			continue;
+		}
 
 		s_send(socket, "\a");
 	}

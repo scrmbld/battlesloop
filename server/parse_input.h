@@ -6,6 +6,7 @@ using namespace std;
 
 //takes data sent over zmq and turns it into something usable
 void parse_input(const string &read, vector<string> &data, string &user) {
+	data.clear();
 	stringstream ss(read);
 	getline(ss, user, '\v');
 	while (ss) {

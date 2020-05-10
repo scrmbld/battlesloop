@@ -95,16 +95,35 @@ void join_match(string read) {
 		read = s_recv(socket);
 		parse_input(read, data);
 		usleep(1'000'000 / MAXFPS);
-		if (data.at(0) == "JOINED") {
-			in_game = true;
-
+		if (data.at(0) == "JOIN") {
+			//connect to game server
 			mvprintw(line, 0, "found game");
 			refresh();
 			line++;
+
+			socket_t game(context, ZMQ_REQ);
+			game.setsockopt(ZMQ_IPV6, 1);
+			game.connect("tcp://localhost:" + data.at(1));
+
+			s_send(game, uname + "\vJOINING");
+			read = s_recv(game);
+			parse_input(read, data);
+			mvprintw(line, 0, data.at(0).c_str());
+			refresh();
+			line++;
+			if (data.at(0) == "ADDED") {
+				in_game = true;
+			} else continue;
+
 			break;
 		}
 	}
-	//TODO: connect to match
+
+
+	mvprintw(line, 0, "successfully joined game");
+	refresh();
+	line++;
+	usleep(200);
 
 }
 
