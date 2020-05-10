@@ -15,13 +15,25 @@ using namespace zmq;
 socket_t *server = nullptr;
 string uname;
 
+void start_ncurses() {
+	system("clear");
+	initscr();
+	noecho();
+	clear();
+}
+
+void stop_ncurses(){
+	clear();
+	endwin();
+	system("clear");
+}
 
 void parse_input(const string &input, vector<string> &data) {
 	data.clear();
 	stringstream ss(input);
 	string tgt;
 	getline(ss, tgt, '\v');
-	if (tgt != uname) {
+	if (tgt != uname && tgt != "ALL") {
 		data.push_back("ERR");
 		return;
 	}
@@ -36,13 +48,16 @@ void parse_input(const string &input, vector<string> &data) {
 void die(int s = 0) {
 	//TODO: update this when we add back ncurses
 	s = s;
-	getch();
-	clear();
-	endwin();
-	
+	stop_ncurses();
+
 	cout << "logging out" << endl;
 	if (server && uname != "") {
-		s_send(*server, uname + "\vLOGOUT");
+		try{
+			s_send(*server, uname + "\vLOGOUT");
+		} catch (const zmq::error_t e) {
+			s_recv(*server);
+			s_send(*server, uname + "\vLOGOUT");
+		}
 		usleep(250'000);
 	}
 	exit(EXIT_SUCCESS);
@@ -66,67 +81,33 @@ int main() {
 
 	//connect to server
 	socket.connect("tcp://" + hostname + ":" + to_string(port));
-	s_send(socket, uname + "\v" + "LOGIN");
-
-	string read = s_recv(socket);
-	vector<string> data;
-	parse_input(read, data);
-	cout << "found server" << endl;
-	server = &socket;
+	s_send(socket, uname + "\v" + "JOIN");
 
 	//start ncurses
 	int line = 0;
-	system("clear");
-	initscr();
-	noecho();
-	clear();
+	start_ncurses();
 	move(0,line);
 	printw("Battlesloop\n");
 	line+= 3;
 	refresh();
 	const int MAXFPS = 60;//cap the frame rate
 
-
-	if (data.at(0) == "ADDED") {
-		mvprintw(line, 0, "Connected successfully");
-		line++;
+	//
+	string read = s_recv(socket);
+	vector<string> data;
+	parse_input(read, data);
+	if (data.at(0) == "ADDED") {//if the server lets us in
+		server = &socket;
 	} else {
-		mvprintw(line, 0, "Something went wrong: unable to log in");
-		exit(EXIT_FAILURE);
-		line++;
+		exit(1);
 	}
-	refresh();
+	
 
-
+	//main game loop
 	while (true) {
-		while (!self.in_game()) {
-			s_send(socket, uname + "\vSEARCH");
-			read = s_recv(socket);
-			parse_input(read, data);
-			usleep(1'000'000 / MAXFPS);
-			if (data.at(0) == "JOINED") {
-				self.joined();
-				
-				mvprintw(line, 0, "Joined game ");
-				refresh();
-				line++;
-			}
-		}
-		s_send(socket, uname + "\v" + "\a");
+		s_send(socket, uname + "\v\a");
 		read = s_recv(socket);
-		parse_input(read, data);
-		usleep(1'000'000 / MAXFPS);
-		if (data.at(0) != "\a") {
-			mvprintw(line, 0, "something went wrong");
-			line++;
-			break;
-		}
 	}
-	refresh();
-	getch();
-	clear();
-	endwin();
-	cout << data.at(0) << endl;
-	return 0;
-
+	
+	die();
 }
