@@ -3,19 +3,44 @@
 #include <zhelpers.hpp>
 #include <string>
 #include <vector>
-#include <unordered_map>
 #include <utility>
-#include <list>
 #include <sstream>
 #include <algorithm>
-#include "player.h"
-#include "game.h"
-#include "board.h"
+#include "parse_input.h"
 using namespace std;
 using namespace zmq;
 
-bool has_one(Game &g) {
-	return g.p1() && !g.p2();
+struct Player{
+	string uname;
+	bool operator==(const Player &rhs) {
+		return uname == rhs.uname;
+	}
+};
+
+bool open(const pair<Player, Player> &p) {
+	return (!p.first.uname.size() || !p.second.uname.size());
+}
+
+
+void remove_player(pair<Player, Player> &p, const string &r) {
+	if (p.first.uname == r) p.first = Player{};
+	else if (p.second.uname == r) p.second = Player{};
+}
+
+bool add_player(pair<Player, Player> &p, const string &new_player) {
+	if (p.first == Player{new_player} || p.second == Player{new_player}) {
+		return false;
+	}
+	if (!p.first.uname.size()) {
+		p.first = {new_player}; 
+		return true;
+	}
+	if (!p.second.uname.size()) {
+		p.second = {new_player};
+		return true;
+	}
+
+	return false;
 }
 
 int main() {
@@ -25,54 +50,51 @@ int main() {
 	socket_t socket(context, ZMQ_REP);
 	socket.setsockopt(ZMQ_IPV6, 1);
 	int port = 1533;
-	
+
 	socket.bind("tcp://*:" + to_string(port));//listen on port
 
 	//prepare for players
-	unordered_map<string, pair<Player, Game*>> players;
-	list<Game> games;
-	size_t next_gid = 1;
-	//wait for players to connect
-	while (true) {
-		string read = s_recv(socket);//wait until something gets sent
-		stringstream ss(read);
-		string uname;
-		getline(ss, uname, '\v');//use vertical tabs to separate data
-		string data;
-		getline(ss, data, '\v');
+	pair<Player, Player> players;
+	string read;
+	vector<string> data;
+	string uname;
 
-		//if the player is just joining:
-		if (data == "LOGIN") {
-			cout << "SERVER: " << read << endl;
-			if (players.count(uname) == 0) {//don't allow duplicates
-				pair<Player, Game*> new_player = {Player(uname, players.size()), nullptr};
-				players.emplace(uname, new_player);
-				s_send(socket, uname + "\vADDED");
-				continue;
+	while (true) {
+		//wait for players
+		cout << "SERVER: waiting for players" << endl;
+		while (open(players)) {
+			read = s_recv(socket);
+			parse_input(read, data, uname);
+			if (data.at(0) == "JOIN") {
+				if (add_player(players, uname)) {
+					cout << "SERVER: " << uname << " has joined the game" << endl;
+					s_send(socket, uname + "\vADDED");
+				} else {
+					s_send(socket, uname + "\vFULL");
+				}
+			} else if (data.at(0) == "LOGOUT") {
+				cout << "SERVER: " << uname << " has left the game" << endl;
+				remove_player(players, uname);
+				s_send(socket, "\a");
 			} else {
-				cout << "SERVER: user already exists" << endl;
-				s_send(socket, uname + "\vERR");
-				continue;
+				s_send(socket, "ALL\v\a");
 			}
-		} else if (data == "LOGOUT") {
-			players.erase(uname);
-		} else if (data == "\a") { //\a indicates empty message
-		} else if (data == "SEARCH") {//the client wishes to join a game
-			auto it = find_if(games.begin(), games.end(), has_one);
-			if (it != games.end()) {
-				it->add_player(players.at(uname));
-				s_send(socket, uname + "\vJOINED");
-				continue;
-			} else {
-				games.push_back(Game(next_gid));
-				games.back().add_player(players.at(uname));
-				next_gid++;
-			}
-		} else {
-			//TODO: add game logic
 		}
-		//TODO: update player on game state
-		//for now just send them whatever
-		s_send(socket, "\a");
+
+		//run the game
+		cout << "SERVER: players gathered, start the game" << endl;
+		while (!open(players)) {
+			read = s_recv(socket);
+			parse_input(read, data, uname);
+			if (data.at(0) == "LOGOUT") {
+				cout << "SERVER: " << uname << " has left the game" << endl;
+				remove_player(players, uname);
+				s_send(socket, "\a");
+				break;
+			}
+
+			s_send(socket, "ALL\v\a");
+		}
+
 	}
 }
