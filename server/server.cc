@@ -15,7 +15,21 @@ struct Player{
 	bool operator==(const Player &rhs) {
 		return uname == rhs.uname;
 	}
+
+	vector<vector<char>> board{10, (vector<char>(10, '~'))};
 };
+
+string to_string(const vector<vector<char>> &vec) {
+	string s;
+	for (auto &v : vec) {
+		for (char c : v) {
+			s.push_back(c);
+		}
+		s.push_back('\n');
+	}
+
+	return s;
+}
 
 bool open(const pair<Player, Player> &p) {
 	return (!p.first.uname.size() || !p.second.uname.size());
@@ -83,6 +97,7 @@ int main() {
 
 		//run the game
 		cout << "SERVER: players gathered, start the game" << endl;
+		bool turn = false; //false = players.first's turn, true == player.second's turn
 		while (!open(players)) {
 			read = s_recv(socket);
 			parse_input(read, data, uname);
@@ -92,8 +107,23 @@ int main() {
 				s_send(socket, "\a");
 				break;
 			}
+			
+			if (!turn && uname == players.first.uname) {
+				if (data.at(0) == "FIRE") {
+					unsigned char col, row = 0;
+					row = data.at(1).at(0) - char(140);
+					col = stoi(data.at(1).at(1));
+					cout << "row: " << row << " col: " << col << endl;
+				} else {
+					s_send()
+				}
+
+				continue;
+			} 
+			
 
 			s_send(socket, "ALL\v\a");
+			turn = !turn;
 		}
 
 	}
