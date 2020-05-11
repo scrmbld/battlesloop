@@ -7,8 +7,6 @@
 #include <ncurses.h>
 #include <unistd.h>
 #include <sstream>
-#include "draw_board.h"
-#include "player.h"
 using namespace std;
 using namespace zmq;
 
@@ -45,6 +43,7 @@ void parse_input(const string &input, vector<string> &data) {
 	}
 }
 
+
 void die(int s = 0) {
 	//TODO: update this when we add back ncurses
 	s = s;
@@ -52,10 +51,10 @@ void die(int s = 0) {
 
 	cout << "logging out" << endl;
 	if (server && uname != "") {
-		try{
+		try {
 			s_send(*server, uname + "\vLOGOUT");
 		} catch (const zmq::error_t e) {
-			s_recv(*server);
+			s_recv(*server, ZMQ_NOBLOCK);
 			s_send(*server, uname + "\vLOGOUT");
 		}
 		usleep(250'000);
@@ -67,7 +66,6 @@ int main() {
 	system("figlet BATTLESLOOP");
 	cout << "\n\n\n" << "What is your username?" << endl;
 	cin >> uname;
-	Player self(uname, 0);
 	cout << "connecting to server..." << flush;
 	signal(SIGINT, die); //disconnect nicely
 
@@ -92,7 +90,7 @@ int main() {
 	refresh();
 	const int MAXFPS = 60;//cap the frame rate
 
-	//
+	//connect to server
 	string read = s_recv(socket);
 	vector<string> data;
 	parse_input(read, data);
@@ -104,10 +102,27 @@ int main() {
 	
 
 	//main game loop
+	s_send(socket, uname + "\v\a");
 	while (true) {
-		s_send(socket, uname + "\v\a");
 		read = s_recv(socket);
+		parse_input(read, data);
+		if (data.at(0) == "TURN") {
+			//TODO: read from user to sent position
+			s_send(socket, uname + "\vFIRE" + "\vb1");
+			continue;
+		} else if (data.at(0) == "MISS") {
+			//TODO: save the fact that we missed
+			//data.at(1).at(0) = x value, data.at(1).at(1) = y value
+		} else if (data.at(0) == "HIT") {//TODO: save hits
+			if (data.at(1) == uname) {//we hit them
+			
+			} else{//they hit us
+			
+			}
+		}
+
+		s_send(socket, uname + "\v\a");
 	}
-	
+
 	die();
 }

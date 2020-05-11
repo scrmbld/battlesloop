@@ -1,2 +1,2 @@
-client: client.cc draw_board.h
+client: client.cc 
 	g++ client.cc -o client.out -lzmq -lncurses
