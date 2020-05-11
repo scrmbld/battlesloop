@@ -104,23 +104,43 @@ int main() {
 	//main game loop
 	s_send(socket, uname + "\v\a");
 	while (true) {
+		usleep(1'000'000 / MAXFPS);
 		read = s_recv(socket);
 		parse_input(read, data);
 		if (data.at(0) == "TURN") {
 			//TODO: read from user to sent position
-			s_send(socket, uname + "\vFIRE" + "\vb1");
-			continue;
-		} else if (data.at(0) == "MISS") {
-			//TODO: save the fact that we missed
-			//data.at(1).at(0) = x value, data.at(1).at(1) = y value
-		} else if (data.at(0) == "HIT") {//TODO: save hits
-			if (data.at(1) == uname) {//we hit them
+			string tgt = "b1";
+			s_send(socket, uname + "\vFIRE" + "\v" + tgt);
+		
+			read = s_recv(socket);
+			if (data.at(0) == "MISS") {
+					mvprintw(line, 0, "we miss");
+					line++;
+					refresh();
 			
-			} else{//they hit us
-			
+			} else if (data.size() == 2 && data.at(1) == "HIT") {
+				if (data.at(1) == uname) {
+					mvprintw(line, 0, "we hit");
+					line++;
+					refresh();
+				} else {
+					mvprintw(line, 0, "they hit us");
+					line++;
+					refresh();
+				}
+			} else {
+				for (const string &s : data) cout << endl << s;
+				cout << endl;
 			}
-		}
 
+			s_send(socket, uname + "\v\a");
+			continue;
+		} else if (data.at(0) == "ERR") {//opponnent disconnects
+		
+		} else if (data.at(0) == "END") {//game finished
+		
+		}
+		//potentially delete later	
 		s_send(socket, uname + "\v\a");
 	}
 
