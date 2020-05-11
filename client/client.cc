@@ -139,7 +139,6 @@ int main (int argc, char **argv)
 		//print the boards
 		draw_board(ALL_Y, OUR_X, our_fleet, "Your Fleet");
 		draw_board(ALL_Y, THEIR_X, enemy_fleet, "Enemy Fleet");
-		refresh();
 		
 		int ch = getch();
 		int cursor_y = 0, cursor_x = 0;
