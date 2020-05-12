@@ -4,6 +4,7 @@
 #include <zhelpers.hpp>
 #include <string>
 #include <iostream>
+#include <utility>
 using namespace std;
 using namespace zmq;
 
@@ -14,6 +15,12 @@ using namespace zmq;
 #include <locale.h>
 #include <curses.h>
 #include <unistd.h>
+
+struct pos{
+	bool ours;//is it our board or theirs?
+	int x = 0;//x position
+	int y = 0;//y position
+};
 
 string username;
 socket_t *server;
@@ -54,6 +61,38 @@ void draw_board(int y, int x, const vector<vector<char>> &vec, string msg = "") 
 	refresh();
 }
 
+pair<int, int> choose_location(int start_y, int start_x) {
+	int key = 0;
+	int x = start_x;
+	int y = start_y;
+	move(y, x);
+	while (key != KEY_ENTER) {
+		key = getch();
+		if (key == ERR) continue;
+		
+		if (key == KEY_RIGHT) {
+			x++;
+		} else if (key == KEY_LEFT) {
+			x--;
+		} else if (key == KEY_DOWN) {
+			y++;
+		} else if (key == KEY_UP) {
+			y--;
+		} else if (key == 10) {//enter
+			break;
+		}
+
+		//clamping
+		if (x < start_x) x = start_x;
+		else if (x > start_x + 9) x = start_x + 9;
+		if (y < start_y) y = start_y;
+		else if (y > start_y + 9) y = start_y + 9;
+		move(y, x);
+	}
+
+	return {x - start_x, y - start_y};
+}
+
 //Run the program like this: "client hostname portname"
 //Example "client 55.22.11.78 2001"
 //Or "client 2001" to use localhost as the host
@@ -70,7 +109,7 @@ int main (int argc, char **argv)
 	//Step 2. Connect to server
 	string hostname = "localhost";
 	if (argc > 2) hostname = argv[1];
-	const int DEFAULT_PORT = 1533; //Change this to any port above 1024
+	const int DEFAULT_PORT = 1543; //Change this to any port above 1024
 	int port = DEFAULT_PORT;
 	//You can run it like this: client 2000 to bind it to a different port
 	try {
@@ -136,10 +175,18 @@ int main (int argc, char **argv)
 	const int OUR_X = 10, THEIR_X = 25, ALL_Y = 5;
 	while(1)
 	{
+		//TODO: somehow take user input for locations on the board
+		
+		
+
 		//print the boards
 		draw_board(ALL_Y, OUR_X, our_fleet, "Your Fleet");
 		draw_board(ALL_Y, THEIR_X, enemy_fleet, "Enemy Fleet");
-		
+	
+		pair<int, int> coords = choose_location(ALL_Y, OUR_X);
+
+		mvprintw(ALL_Y + 11, OUR_X, "%d, %d", coords.first, coords.second);
+
 		int ch = getch();
 		int cursor_y = 0, cursor_x = 0;
 		getyx(stdscr,cursor_y,cursor_x); //Gets current cursor location
@@ -156,7 +203,7 @@ int main (int argc, char **argv)
 		else if(ch == KEY_MOUSE) { //Handle mouse events
 			MEVENT mouse; //Struct for holding mouse events
 			getmouse(&mouse);
-
+			
 			//move(0,0);
 			//clrtoeol();
 			//printw("%d\t%d\n",mouse.y,mouse.x);
@@ -164,7 +211,6 @@ int main (int argc, char **argv)
 			//refresh();
 		}
 		//Handle arrow keys
-		//TODO: Have them scroll the chat buffer, they don't do anything right now
         else if (ch == KEY_RIGHT) {
             x++;
 			if (x >= COLS) x = COLS-1;
@@ -224,6 +270,8 @@ int main (int argc, char **argv)
 			; //Nothing happened, don't refresh
 		else
 			refresh();
+
+		//TODO: network I/O goes here
 		
 		usleep(1'000'000 / MAXFPS); //Cap frame rate at FPS
 	}
