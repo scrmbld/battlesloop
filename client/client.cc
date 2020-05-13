@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include <utility>
+#include <vector>
 using namespace std;
 using namespace zmq;
 
@@ -21,6 +22,16 @@ struct pos{
 	int x = 0;//x position
 	int y = 0;//y position
 };
+
+void response_to_vec(const string &r, vector<string> &data) {
+	stringstream sts(r);
+	while (sts) {
+		string temp;
+		getline(sts, temp);
+		if (!sts) break;
+		data.push_back(temp);
+	}
+}
 
 string username;
 socket_t *server;
@@ -93,6 +104,31 @@ pair<int, int> choose_location(int start_y, int start_x) {
 	return {x - start_x, y - start_y};
 }
 
+string to_string(pair<int, int> p) {
+	return to_string(p.first) + to_string(p.second);
+}
+
+//returns true for our turn, false for theirs, only works when first joining
+bool whose_turn(string read) {
+	vector<string> data;
+	response_to_vec(read, data);
+
+	for (string s : data) cout << s << endl;
+
+	if (!data.size()) bail_out();
+	if (data.size() == 1) return true;
+	else {
+		stringstream sts(data.at(data.size() - 1)); //clear the stringstream
+		sts << data.at(data.size() - 1);
+		string temp;
+		getline(sts, temp, ':');
+		getline(sts, temp);
+		if (temp.at(0) != 'l') return false;
+	}
+
+	return true;
+}
+
 //Run the program like this: "client hostname portname"
 //Example "client 55.22.11.78 2001"
 //Or "client 2001" to use localhost as the host
@@ -109,7 +145,7 @@ int main (int argc, char **argv)
 	//Step 2. Connect to server
 	string hostname = "localhost";
 	if (argc > 2) hostname = argv[1];
-	const int DEFAULT_PORT = 1543; //Change this to any port above 1024
+	const int DEFAULT_PORT = 2543; //Change this to any port above 1024
 	int port = DEFAULT_PORT;
 	//You can run it like this: client 2000 to bind it to a different port
 	try {
@@ -151,7 +187,7 @@ int main (int argc, char **argv)
 	mousemask(ALL_MOUSE_EVENTS,NULL); //Enable mouse support
 
 	int ROWS = 40, COLS = 20;
- 	getmaxyx(stdscr, ROWS, COLS); //Read the terminals ROWS and COLS. TODO: Check for KEY_REFRESH
+	getmaxyx(stdscr, ROWS, COLS); //Read the terminals ROWS and COLS. TODO: Check for KEY_REFRESH
 	idlok(stdscr,true);
 	scrollok(stdscr,true);
 	setscrreg(1,ROWS-3);
@@ -159,10 +195,9 @@ int main (int argc, char **argv)
 	clear(); //Erase screen
 
 	move(0,0); //Move to top left
-	printw("CSCI4X Chat");
+	printw("BATTLESLOOP");
 
 	move(ROWS-1,0); //Move to bottom, two rows up
-	printw("%s: TYPE YOUR CHAT HERE",username.c_str());
 
 	//Step 4. Receive data from the server
 	move(1,0); //Move cursor to the second line
@@ -170,112 +205,36 @@ int main (int argc, char **argv)
 	printw("%s",response.c_str());
 	refresh();
 
-	int x = 0, y = 0; //Location in the world
-	string current_str; //What the user is currently typing
+	//top left line/col data for both player's boards
 	const int OUR_X = 10, THEIR_X = 25, ALL_Y = 5;
+	bool our_turn = whose_turn(response);//TODO: figure out whose turn it is
 	while(1)
 	{
-		//TODO: somehow take user input for locations on the board
-		
-		
-
-		//print the boards
-		draw_board(ALL_Y, OUR_X, our_fleet, "Your Fleet");
-		draw_board(ALL_Y, THEIR_X, enemy_fleet, "Enemy Fleet");
-	
-		pair<int, int> coords = choose_location(ALL_Y, OUR_X);
-
-		mvprintw(ALL_Y + 11, OUR_X, "%d, %d", coords.first, coords.second);
-
-		int ch = getch();
-		int cursor_y = 0, cursor_x = 0;
-		getyx(stdscr,cursor_y,cursor_x); //Gets current cursor location
-		/*
-		move(ROWS-1,0);
-		printw("Cursor location: %i %i",cursor_y,cursor_x);
-		refresh();
-		move(cursor_y,cursor_x);
-        */
-		if (ch == ERR) { //No keystroke
-            ; //Do nothing
-        }
-		//TODO: Add mouse support, I'm commenting this out for now
-		else if(ch == KEY_MOUSE) { //Handle mouse events
-			MEVENT mouse; //Struct for holding mouse events
-			getmouse(&mouse);
-			
-			//move(0,0);
-			//clrtoeol();
-			//printw("%d\t%d\n",mouse.y,mouse.x);
-			//mvprintw(mouse.y,mouse.x,"🤣"); //Move + printw
-			//refresh();
-		}
-		//Handle arrow keys
-        else if (ch == KEY_RIGHT) {
-            x++;
-			if (x >= COLS) x = COLS-1;
-        }
-        else if (ch == KEY_LEFT) {
-            x--;
-            if (x < 0) x = 0;
-        }
-        else if (ch == KEY_UP) {
-            y--;
-            if (y < 0) y = 0;
-        }
-        else if (ch == KEY_DOWN) {
-            y++;
-			if (y >= ROWS) y = ROWS - 1;
-        }
-		//Handle special keys like delete and enter
-		else if (ch == KEY_DC or ch == KEY_BACKSPACE or ch == '') { //Delete keys
-			if (current_str.size())
-				current_str.pop_back();
-			move(ROWS-1,0); //Move to bottom
-			clrtoeol(); //Erase the whole line
-			printw("%s: %s\n",username.c_str(),current_str.c_str());
-			move(cursor_y,cursor_x); //Put cursor back where it was
-			refresh();
-		}
-		//ctrl-u erases everything typed
-		else if (ch == KEY_DL) { //Delete line
-			current_str.clear(); //Erase everything we've typed
-		}
-		else {
-			char c = (char) ch; //Convert ch to char
-			if (isprint(c) and ch != KEY_ENTER and c != ':') { //Make sure it's a printable character before adding it
-				current_str += c; //Add it to the string we're typing
-				move(ROWS-1,0); //Move to bottom
-				printw("%s: %s\n",username.c_str(),current_str.c_str());
-				move(cursor_y,cursor_x); //Put cursor back where it was
-			}
-		}
-
-		//Send a line of chat if they hit enter
-		if (ch == KEY_ENTER or ch == '\n') {
-			if (current_str == "QUIT" or current_str == "quit") exit(0);
-			s_send(socket,username + ":" + current_str);
-			current_str.clear(); //Erase the current line
-			move(ROWS-1,0); //Move to bottom
-			printw("%s: %s\n",username.c_str(),current_str.c_str());
-			move(cursor_y,cursor_x); //Put cursor back where it was
-		}
-		else //Heartbeat the server to get updates
-			s_send(socket,username + ":");
-		string response = s_recv(socket); //Get update from server
-		if (response != "") //Ignore empty heartbeat
-			printw("%s",response.c_str());
-
-		if (ch == ERR and response == "") 
-			; //Nothing happened, don't refresh
-		else
+		clear();
+		mvprintw(0, 0, "BATTLESLOOP");
+		if (our_turn) {
+			mvprintw(ALL_Y + 14, OUR_X, "Your Turn");
+			//print the boards
+			draw_board(ALL_Y, OUR_X, our_fleet, "Your Fleet");
+			draw_board(ALL_Y, THEIR_X, enemy_fleet, "Enemy Fleet");
 			refresh();
 
-		//TODO: network I/O goes here
-		
-		usleep(1'000'000 / MAXFPS); //Cap frame rate at FPS
+			//pick a spot on our board
+			pair<int, int> coords = choose_location(ALL_Y, OUR_X);
+
+			s_send(socket, username + ":" + to_string(coords));
+			string read = s_recv(socket);
+			mvprintw(ALL_Y + 15, OUR_X, read.c_str());
+		} else {
+			mvprintw(ALL_Y + 14, OUR_X, "Opponent's Turn");
+			draw_board(ALL_Y, OUR_X, our_fleet, "Your Fleet");
+			draw_board(ALL_Y, THEIR_X, enemy_fleet, "Enemy Fleet");
+			//TODO: opponent's turn
+		}
+
+		our_turn = !our_turn;
 	}
-	
+
 	endwin(); //Turn off NCURSES
 	return 0;
 }
