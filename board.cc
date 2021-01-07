@@ -56,3 +56,38 @@ std::pair<int, int> Board::selectTile() {
 	return {y, x};
 }
 
+int Board::getTile(int y, int x) {
+	return vec.at(y).at(x);
+}
+
+int Board::getTile(std::pair<int, int> pos) {
+	return vec.at(pos.first).at(pos.second);
+}
+
+void Board::changeTile(int y, int x, int new_val) {
+	vec.at(y).at(x) = new_val;
+}
+
+void Board::changeTile(std::pair<int, int> pos, int new_val) {
+	vec.at(pos.first).at(pos.second) = new_val;
+}
+
+void Board::attackTile(int y, int x) {
+	if (vec.at(y).at(x) == 0) vec.at(y).at(x) = 2;
+	else if (vec.at(y).at(x) == 1) vec.at(y).at(x) = 3;
+}
+
+void Board::attackTile(std::pair<int, int> pos) {
+	if (vec.at(pos.first).at(pos.second) == 0) vec.at(pos.first).at(pos.second) = 2;
+	else if (vec.at(pos.first).at(pos.second) == 1) vec.at(pos.first).at(pos.second) = 3;
+}
+
+bool Board::isAlive() {
+	for (const auto &v : vec) {
+		for (const int i : v) {
+			if (i == 1) return true;
+		}
+	}
+
+	return false;
+}

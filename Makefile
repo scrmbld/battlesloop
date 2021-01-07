@@ -6,10 +6,10 @@ CPPLIBS = -lncurses
 CPPCOMP = g++-10
 
 game: game.cc board.o
-	${CPPCOMP} $<  ${CPPLIBS} ${CPPFLAGS} -o game
+	${CPPCOMP} game.cc board.o ${CPPLIBS} ${CPPFLAGS} -o game
 
 board.o: board.cc board.h
-	${CPPCOMP} $& ${CPPLIBS} ${CPPFLAGS} -c
+	${CPPCOMP} board.cc ${CPPLIBS} ${CPPFLAGS} -c
 
 clean:
 	rm game *.o

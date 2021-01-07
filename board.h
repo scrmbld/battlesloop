@@ -22,4 +22,17 @@ class Board {
 
 		//player uses arrow keys to select a spot on the board
 		std::pair<int, int> selectTile();
+
+		//get a point on the board
+		int getTile(int y, int x);
+		int getTile(std::pair<int, int>);
+		//modify a point on the board
+		void changeTile(int y, int x, int new_val);
+		void changeTile(std::pair<int, int>, int new_val);
+		//attack a point on the board
+		void attackTile(int y, int x);
+		void attackTile(std::pair<int, int>);
+
+		//check to see if any of the board's fleet is alive
+		bool isAlive(); 
 };

@@ -1,71 +1,9 @@
+#include "board.h"
 #include <iostream>
 #include <utility>
 #include <vector>
 #include <curses.h>
 
-class Board {
-	private:
-		const int SIZE = 10;
-		const std::vector<char> visual = {'~', 'S', 'M', 'H'};//maps each possible value for a position on the board to its visual representation in the game
-		std::vector<std::vector<int>> vec; 
-		//board's position on the screen
-		const int start_x, start_y;
-		//board's name (printed at start_x, start_y - 1)
-		const std::string name;
-	public:
-		Board(int y, int x, std::string s) : start_y(y), start_x(x), name(s) {
-			vec.resize(10);
-			for (auto &v : vec) {
-				v.resize(10);
-				for (int &i : v) {
-					i = 0;
-				}
-			}
-		}
-		//prints out the board with top left corner at start_x, start_y
-		//uses visual to map items in vec to what the player sees
-		void drawBoard() {
-			mvprintw(start_y - 1, start_x, name.c_str());
-			for (int i = 0; i < 10; i++) {
-				for (int j = 0; j < 10; j++) {
-					mvaddch(i + start_y, j * 2 + start_x, visual.at(vec.at(i).at(j)));
-				} 
-			}
-
-			refresh();
-		}
-
-		std::pair<int, int> selectTile() {
-			int key = 0;
-			int y = 0, x = 0;
-			move(start_y + y, start_x + x * 2);
-			while (key != 10) {
-				key = getch();
-				if (key == ERR) continue;
-
-				//arrow keys
-				if (key == 67) {
-					x++;
-				} else if (key == 68) {
-					x--;
-				} else if (key == 66) {
-					y++;
-				} else if (key == 65) {
-					y--;
-				} else if (key == 10) break; 
-
-				//clamping
-				if (x < 0) x = 0;
-				if (y < 0) y = 0;
-				if (x > 9) x = 9;
-				if (y > 9) y = 9;
-				move(start_y + y, start_x + x * 2);
-			}
-			
-			return {y, x};
-		}
-
-};
 int main() {
 	//start ncurses
 	initscr();
@@ -80,11 +18,44 @@ int main() {
 	p1.drawBoard();
 	p2.drawBoard();
 
-	std::pair<int, int> selected;
-	selected = p1.selectTile();
-	mvprintw(p1_y + 11, p1_x, "%i, %i", selected.first, selected.second);
-	refresh();
-	getch();
+	//place ships
+	for (int i = 0; i < 5; i++) {
+		//take input
+		std::pair<int, int> selected = p1.selectTile();
+		p1.changeTile(selected, 1);
+
+		//update screen
+		p1.drawBoard();
+		p2.drawBoard();
+		refresh();
+
+	}
+
+	//place ships for p2 (temporary, will not be used for online)
+	for (int i = 0; i < 5; i++) {
+		//take input
+		std::pair<int, int> selected = p2.selectTile();
+		p2.changeTile(selected, 1);
+
+		//update screen
+		p1.drawBoard();
+		p2.drawBoard();
+		refresh();
+
+	}
+	
+
+	//main game loop
+	while (p1.isAlive() && p2.isAlive()) {
+		//p1's turn
+		std::pair<int, int> selected = p2.selectTile();
+		p2.attackTile(selected);
+		
+		//update screen
+		p1.drawBoard();
+		p2.drawBoard();
+		refresh();
+	}
 
 	//end ncurses
 	refresh();
@@ -92,5 +63,7 @@ int main() {
 	clear;
 	endwin();
 	system("clear");
+	
+	std::cout << p1.isAlive() << ", " << p2.isAlive() << std::endl;
 	return 0;
 }
