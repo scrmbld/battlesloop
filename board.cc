@@ -119,3 +119,22 @@ bool Board::isAlive() {
 
 	return false;
 }
+
+std::string Board::encodeToString() {			
+	std::string retval;
+	for (const auto &v : vec) {
+		for (int i : v) {
+			retval.push_back(i);
+		}
+	}
+
+	return retval;
+}
+
+void Board::updateFromString(std::string new_data) {
+	for (int i = 0; i < 10; i++) {
+		for (int j = 0; j < 10; j++) {
+			vec.at(i).at(j) = (int)new_data.at(i * 10 + j);
+		}
+	}
+}

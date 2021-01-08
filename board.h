@@ -41,4 +41,9 @@ class Board {
 
 		//check to see if any of the board's fleet is alive
 		bool isAlive(); 
+
+		//encode the board's data to a string
+		std::string encodeToString();
+		//update the board's data from a string
+		void updateFromString(std::string new_data); 
 };

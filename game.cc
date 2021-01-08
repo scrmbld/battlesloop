@@ -8,7 +8,6 @@ int main() {
 	//start ncurses
 	initscr();
 	noecho();
-	printw("hello world!");
 
 	//create boards
 	std::string test_data = "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111";
@@ -18,6 +17,19 @@ int main() {
 	
 	p1.drawBoard();
 	p2.drawBoard();
+	
+	refresh();
+	getch();
+	std::string data = p1.encodeToString();
+	mvprintw(1, 1, "%c", data.at(0));
+	refresh();
+	getch();
+	p2.updateFromString(data);
+	
+	p1.drawBoard();
+	p2.drawBoard();
+	refresh();
+	getch();
 
 	//place ships
 	for (int i = 0; i < 5; i++) {
