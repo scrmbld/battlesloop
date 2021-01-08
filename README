@@ -1,0 +1,3 @@
+Another attempt at doing this project, this time with asio instead of ZMQ
+
+An ncurses recreation of the classic game Battleship with over the network multiplayer via ASIO
