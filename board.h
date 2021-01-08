@@ -15,7 +15,13 @@ class Board {
 		//board's name (printed at start_x, start_y - 1)
 		const std::string name;
 	public:
-		Board(int y, int x, std::string s);
+		//construct empty board taking arguments for y position, x position, and name
+		Board(int y, int x, std::string name);
+		Board(std::pair<int, int> pos, std::string name);
+		//construct non-empty board from a data string
+		Board(int y, int x, std::string name, std::string data);
+		Board(std::pair<int, int> pos, std::string name, std::string data);
+		
 		//prints out the board with top left corner at start_x, start_y
 		//uses visual to map items in vec to what the player sees
 		void drawBoard();

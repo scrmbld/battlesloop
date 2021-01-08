@@ -1,15 +1,43 @@
 #include "board.h"
+#include <cassert>
 #include <iostream>
 #include <utility>
 #include <vector>
 #include <curses.h>
 
-Board::Board(int y, int x, std::string s) : start_y(y), start_x(x), name(s) {
+Board::Board(int y, int x, std::string new_name) : start_y(y), start_x(x), name(new_name) {
 	vec.resize(10);
 	for (auto &v : vec) {
 		v.resize(10);
 		for (int &i : v) {
 			i = 0;
+		}
+	}
+}
+
+Board::Board(std::pair<int, int> pos, std::string new_name) : start_y(pos.first), start_x(pos.second), name(new_name) {
+	vec.resize(10);
+	for (auto &v : vec) {
+		v.resize(10);
+		for (int &i : v) {
+			i = 0;
+		}
+	}
+}
+
+Board::Board(int y, int x, std::string new_name, std::string data) : start_y(y), start_x(x), name(new_name) {
+	//check data string
+	assert(data.size() == 100);
+
+	//resize all the vectors
+	vec.resize(10);
+	for (auto &v : vec)
+		v.resize(10);
+
+	//pull from data
+	for (int i = 0; i < 10; i++) {
+		for (int j = 0; j < 10; j++) {
+			vec.at(i).at(j) = data.at(i * 10 + j) - '0';
 		}
 	}
 }
